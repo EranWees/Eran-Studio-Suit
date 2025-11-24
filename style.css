@@ -1,0 +1,50 @@
+/* Custom scrollbar for sleek look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Animations */
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+.animate-spin-reverse {
+  animation: spin-reverse 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-shimmer {
+  animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+}
+
+.pattern-grid {
+  background-image: radial-gradient(#3f3f46 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Utility to hide elements */
+.hidden {
+    display: none !important;
+}
