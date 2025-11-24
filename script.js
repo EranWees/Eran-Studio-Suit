@@ -1,6 +1,5 @@
-// --- Configuration ---
 // TODO: Replace with your actual Google Cloud OAuth 2.0 Client ID
-const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+const CLIENT_ID = '216951451858-682l3j2lmstp2gpar8uihtf2pnak7ecc.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/generative-language.retriever https://www.googleapis.com/auth/cloud-platform';
 
 // --- Application State ---
@@ -93,26 +92,21 @@ function updateAuthUI() {
 
 // --- Auth Logic ---
 function initGoogleAuth() {
-    state.tokenClient = google.accounts.oauth2.initTokenClient({
+    google.accounts.id.initialize({
         client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-            if (tokenResponse.access_token) {
-                state.accessToken = tokenResponse.access_token;
-                localStorage.setItem('google_access_token', state.accessToken);
-                updateAuthUI();
-            }
-        },
+        callback: handleCredentialResponse
     });
-    updateAuthUI();
 }
 
 function handleLogin() {
-    if (state.tokenClient) {
-        state.tokenClient.requestAccessToken();
-    } else {
-        console.error("Token client not initialized");
-    }
+    google.accounts.id.prompt();
+}
+
+function handleCredentialResponse(response) {
+    console.log("Google ID token:", response.credential);
+    state.accessToken = response.credential;
+    localStorage.setItem('google_access_token', state.accessToken);
+    updateAuthUI();
 }
 
 async function fetchUserProfile() {
