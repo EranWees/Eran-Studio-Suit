@@ -1,6 +1,7 @@
-// TODO: Replace with your actual Google Cloud OAuth 2.0 Client ID
-const CLIENT_ID = '216951451858-682l3j2lmstp2gpar8uihtf2pnak7ecc.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/generative-language.retriever https://www.googleapis.com/auth/cloud-platform';
+// --- Configuration ---
+// TODO: Replace with your actual Gemini API Key from https://aistudio.google.com/app/apikey
+const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
+const GOOGLE_CLIENT_ID = '216951451858-682l3j2lmstp2gpar8uihtf2pnak7ecc.apps.googleusercontent.com';
 
 // --- Application State ---
 const state = {
@@ -13,9 +14,9 @@ const state = {
     maskData: null,
     brushSize: 30,
     customReplacePrompt: "",
-    accessToken: localStorage.getItem('google_access_token'),
-    tokenClient: null,
-    user: null
+    user: null,
+    usageCount: parseInt(localStorage.getItem('eran_studio_usage_count') || '0'),
+    dailyLimit: 50
 };
 
 const MODES = [
@@ -32,7 +33,8 @@ const views = {
     results: document.getElementById('view-results'),
     detail: document.getElementById('view-detail'),
     masking: document.getElementById('view-masking'),
-    replace: document.getElementById('view-replace')
+    replace: document.getElementById('view-replace'),
+    dashboard: document.getElementById('view-dashboard')
 };
 
 // --- Navigation ---
@@ -57,6 +59,10 @@ function showView(viewName) {
 
     state.step = viewName.toUpperCase();
     updateHeader();
+
+    if (viewName === 'dashboard') {
+        renderDashboard();
+    }
 }
 
 function updateHeader() {
@@ -74,14 +80,14 @@ function updateAuthUI() {
     const enterBtn = document.getElementById('btn-enter-studio');
     const loginMsg = document.getElementById('login-msg');
 
-    if (state.accessToken) {
+    if (state.user) {
         btnLogin.classList.add('hidden');
         userProfile.classList.remove('hidden');
         enterBtn.disabled = false;
         loginMsg.classList.add('hidden');
 
-        // Fetch user info if not already
-        if (!state.user) fetchUserProfile();
+        document.getElementById('user-name').textContent = state.user.name;
+        document.getElementById('user-avatar').src = state.user.picture;
     } else {
         btnLogin.classList.remove('hidden');
         userProfile.classList.add('hidden');
@@ -90,10 +96,10 @@ function updateAuthUI() {
     }
 }
 
-// --- Auth Logic ---
+// --- Auth Logic (Google Identity Services) ---
 function initGoogleAuth() {
     google.accounts.id.initialize({
-        client_id: CLIENT_ID,
+        client_id: GOOGLE_CLIENT_ID,
         callback: handleCredentialResponse
     });
 }
@@ -103,31 +109,65 @@ function handleLogin() {
 }
 
 function handleCredentialResponse(response) {
-    console.log("Google ID token:", response.credential);
-    state.accessToken = response.credential;
-    localStorage.setItem('google_access_token', state.accessToken);
+    // Decode JWT to get user info
+    const responsePayload = decodeJwtResponse(response.credential);
+
+    state.user = {
+        name: responsePayload.name,
+        email: responsePayload.email,
+        picture: responsePayload.picture
+    };
+
     updateAuthUI();
 }
 
-async function fetchUserProfile() {
-    try {
-        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { 'Authorization': `Bearer ${state.accessToken}` }
-        });
-        if (response.ok) {
-            const data = await response.json();
-            state.user = data;
-            document.getElementById('user-name').textContent = data.name;
-            document.getElementById('user-avatar').src = data.picture;
-        } else {
-            // Token might be expired
-            state.accessToken = null;
-            localStorage.removeItem('google_access_token');
-            updateAuthUI();
-        }
-    } catch (e) {
-        console.error("Failed to fetch user profile", e);
+function decodeJwtResponse(token) {
+    var base64Url = token.split('.')[1];
+    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    return JSON.parse(jsonPayload);
+}
+
+function handleLogout() {
+    state.user = null;
+    google.accounts.id.disableAutoSelect();
+    updateAuthUI();
+    showView('home');
+}
+
+// --- Dashboard Logic ---
+function renderDashboard() {
+    if (!state.user) return;
+
+    document.getElementById('dashboard-name').textContent = state.user.name;
+    document.getElementById('dashboard-email').textContent = state.user.email;
+    document.getElementById('dashboard-avatar').src = state.user.picture;
+
+    const usageText = document.getElementById('usage-text');
+    const usageBar = document.getElementById('usage-bar');
+    const totalImages = document.getElementById('total-images');
+
+    usageText.textContent = `${state.usageCount} / ${state.dailyLimit}`;
+    const percentage = Math.min((state.usageCount / state.dailyLimit) * 100, 100);
+    usageBar.style.width = `${percentage}%`;
+
+    if (percentage >= 100) {
+        usageBar.classList.remove('bg-blue-500');
+        usageBar.classList.add('bg-red-500');
+    } else {
+        usageBar.classList.add('bg-blue-500');
+        usageBar.classList.remove('bg-red-500');
     }
+
+    totalImages.textContent = state.usageCount;
+}
+
+function incrementUsage() {
+    state.usageCount++;
+    localStorage.setItem('eran_studio_usage_count', state.usageCount.toString());
 }
 
 // --- Logic ---
@@ -159,10 +199,18 @@ function handleFileUpload(file) {
     reader.readAsDataURL(file);
 }
 
-// --- Gemini API (Direct REST) ---
+// --- Gemini API (Direct REST with API Key) ---
 async function generateEditedImage(base64Data, mimeType, style) {
-    if (!state.accessToken) {
+    if (!state.user) {
         alert("Please sign in first.");
+        return;
+    }
+    if (state.usageCount >= state.dailyLimit) {
+        alert("You have reached your daily generation limit.");
+        return;
+    }
+    if (GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+        alert("Please configure your Gemini API Key in script.js");
         return;
     }
 
@@ -183,10 +231,9 @@ async function generateEditedImage(base64Data, mimeType, style) {
     };
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${state.accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
@@ -198,11 +245,9 @@ async function generateEditedImage(base64Data, mimeType, style) {
         }
 
         const data = await response.json();
-        // Check for image in candidates
-        // Note: The response structure for images might vary slightly depending on the model version, 
-        // but typically it's in candidates[0].content.parts[0].inlineData
         const part = data.candidates?.[0]?.content?.parts?.[0];
         if (part && part.inlineData && part.inlineData.data) {
+            incrementUsage();
             return part.inlineData.data;
         }
         throw new Error("No image generated.");
@@ -213,8 +258,16 @@ async function generateEditedImage(base64Data, mimeType, style) {
 }
 
 async function replaceObject(originalBase64, maskBase64, promptText) {
-    if (!state.accessToken) {
+    if (!state.user) {
         alert("Please sign in first.");
+        return;
+    }
+    if (state.usageCount >= state.dailyLimit) {
+        alert("You have reached your daily generation limit.");
+        return;
+    }
+    if (GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
+        alert("Please configure your Gemini API Key in script.js");
         return;
     }
 
@@ -236,10 +289,9 @@ async function replaceObject(originalBase64, maskBase64, promptText) {
     };
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${state.accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
@@ -253,6 +305,7 @@ async function replaceObject(originalBase64, maskBase64, promptText) {
         const data = await response.json();
         const part = data.candidates?.[0]?.content?.parts?.[0];
         if (part && part.inlineData && part.inlineData.data) {
+            incrementUsage();
             return part.inlineData.data;
         }
         throw new Error("No image generated.");
@@ -475,9 +528,13 @@ document.addEventListener('DOMContentLoaded', () => {
     views.detail = document.getElementById('view-detail');
     views.masking = document.getElementById('view-masking');
     views.replace = document.getElementById('view-replace');
+    views.dashboard = document.getElementById('view-dashboard');
 
     // Auth
     document.getElementById('btn-login').onclick = handleLogin;
+    document.getElementById('user-profile').onclick = () => showView('dashboard');
+    document.getElementById('btn-logout').onclick = handleLogout;
+    document.getElementById('btn-dashboard-back').onclick = () => showView('home');
 
     // Navigation Buttons
     document.getElementById('btn-enter-studio').onclick = () => showView('workflow');

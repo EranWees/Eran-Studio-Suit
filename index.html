@@ -319,6 +319,70 @@
       </div>
     </section>
 
+    <!-- View: Dashboard -->
+    <section id="view-dashboard" class="hidden flex-1 flex flex-col p-8 animate-fade-in overflow-y-auto">
+      <div class="max-w-4xl mx-auto w-full space-y-8">
+        <div class="flex items-center gap-4 mb-8">
+          <button id="btn-dashboard-back" class="text-zinc-500 hover:text-white transition-colors">
+            <i data-lucide="arrow-left" class="w-6 h-6"></i>
+          </button>
+          <h2 class="text-3xl font-bold text-white">User Dashboard</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Profile Card -->
+          <div
+            class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center text-center space-y-4">
+            <img id="dashboard-avatar" src="" alt="Profile" class="w-24 h-24 rounded-full border-2 border-zinc-700">
+            <div>
+              <h3 id="dashboard-name" class="text-xl font-bold text-white"></h3>
+              <p id="dashboard-email" class="text-zinc-400 text-sm"></p>
+            </div>
+            <div class="pt-4 w-full">
+              <button id="btn-logout"
+                class="w-full py-2 bg-zinc-800 text-zinc-300 rounded-lg hover:bg-red-900/50 hover:text-red-200 transition-colors text-sm font-medium">
+                Sign Out
+              </button>
+            </div>
+          </div>
+
+          <!-- Usage Stats -->
+          <div class="md:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <i data-lucide="activity" class="w-5 h-5 text-blue-400"></i> API Usage
+              </h3>
+              <span
+                class="px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-bold uppercase tracking-wider">Active
+                Plan</span>
+            </div>
+
+            <div class="space-y-2">
+              <div class="flex justify-between text-sm">
+                <span class="text-zinc-400">Daily Generations</span>
+                <span id="usage-text" class="text-white font-medium">0 / 50</span>
+              </div>
+              <div class="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+                <div id="usage-bar" class="h-full bg-blue-500 w-0 transition-all duration-500"></div>
+              </div>
+              <p class="text-xs text-zinc-500 pt-1">Resets in 24 hours.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 pt-4">
+              <div class="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                <div class="text-zinc-500 text-xs uppercase tracking-wider mb-1">Total Images</div>
+                <div id="total-images" class="text-2xl font-bold text-white">0</div>
+              </div>
+              <div class="bg-zinc-950 rounded-xl p-4 border border-zinc-800">
+                <div class="text-zinc-500 text-xs uppercase tracking-wider mb-1">Status</div>
+                <div class="text-2xl font-bold text-green-400">Good</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <script src="script.js"></script>
