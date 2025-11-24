@@ -1,7 +1,6 @@
 // --- Configuration ---
-// TODO: Replace with your actual Gemini API Key from https://aistudio.google.com/app/apikey
-const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY';
 const GOOGLE_CLIENT_ID = '216951451858-682l3j2lmstp2gpar8uihtf2pnak7ecc.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/generative-language.retriever';
 
 // --- Application State ---
 const state = {
@@ -15,6 +14,8 @@ const state = {
     brushSize: 30,
     customReplacePrompt: "",
     user: null,
+    accessToken: localStorage.getItem('google_access_token'),
+    tokenClient: null,
     usageCount: parseInt(localStorage.getItem('eran_studio_usage_count') || '0'),
     dailyLimit: 50
 };
@@ -80,7 +81,7 @@ function updateAuthUI() {
     const enterBtn = document.getElementById('btn-enter-studio');
     const loginMsg = document.getElementById('login-msg');
 
-    if (state.user) {
+    if (state.user && state.accessToken) {
         btnLogin.classList.add('hidden');
         userProfile.classList.remove('hidden');
         enterBtn.disabled = false;
@@ -96,44 +97,65 @@ function updateAuthUI() {
     }
 }
 
-// --- Auth Logic (Google Identity Services) ---
+// --- Auth Logic (Google OAuth 2.0) ---
 function initGoogleAuth() {
-    google.accounts.id.initialize({
+    state.tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse
+        scope: SCOPES,
+        callback: async (tokenResponse) => {
+            if (tokenResponse.access_token) {
+                state.accessToken = tokenResponse.access_token;
+                localStorage.setItem('google_access_token', state.accessToken);
+
+                // Fetch user profile
+                await fetchUserProfile();
+                updateAuthUI();
+            }
+        },
     });
+
+    // If we have a stored token, validate it
+    if (state.accessToken) {
+        fetchUserProfile();
+    }
 }
 
 function handleLogin() {
-    google.accounts.id.prompt();
+    if (state.tokenClient) {
+        state.tokenClient.requestAccessToken();
+    }
 }
 
-function handleCredentialResponse(response) {
-    // Decode JWT to get user info
-    const responsePayload = decodeJwtResponse(response.credential);
+async function fetchUserProfile() {
+    if (!state.accessToken) return;
 
-    state.user = {
-        name: responsePayload.name,
-        email: responsePayload.email,
-        picture: responsePayload.picture
-    };
+    try {
+        const response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
+            headers: { 'Authorization': `Bearer ${state.accessToken}` }
+        });
 
-    updateAuthUI();
-}
-
-function decodeJwtResponse(token) {
-    var base64Url = token.split('.')[1];
-    var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-
-    return JSON.parse(jsonPayload);
+        if (response.ok) {
+            const data = await response.json();
+            state.user = {
+                name: data.name,
+                email: data.email,
+                picture: data.picture
+            };
+            updateAuthUI();
+        } else {
+            // Token expired or invalid
+            handleLogout();
+        }
+    } catch (e) {
+        console.error("Failed to fetch user profile", e);
+        handleLogout();
+    }
 }
 
 function handleLogout() {
     state.user = null;
-    google.accounts.id.disableAutoSelect();
+    state.accessToken = null;
+    localStorage.removeItem('google_access_token');
     updateAuthUI();
     showView('home');
 }
@@ -199,18 +221,14 @@ function handleFileUpload(file) {
     reader.readAsDataURL(file);
 }
 
-// --- Gemini API (Direct REST with API Key) ---
+// --- Gemini API (OAuth 2.0 Access Token) ---
 async function generateEditedImage(base64Data, mimeType, style) {
-    if (!state.user) {
+    if (!state.user || !state.accessToken) {
         alert("Please sign in first.");
         return;
     }
     if (state.usageCount >= state.dailyLimit) {
         alert("You have reached your daily generation limit.");
-        return;
-    }
-    if (GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
-        alert("Please configure your Gemini API Key in script.js");
         return;
     }
 
@@ -231,9 +249,10 @@ async function generateEditedImage(base64Data, mimeType, style) {
     };
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`, {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${state.accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
@@ -258,16 +277,12 @@ async function generateEditedImage(base64Data, mimeType, style) {
 }
 
 async function replaceObject(originalBase64, maskBase64, promptText) {
-    if (!state.user) {
+    if (!state.user || !state.accessToken) {
         alert("Please sign in first.");
         return;
     }
     if (state.usageCount >= state.dailyLimit) {
         alert("You have reached your daily generation limit.");
-        return;
-    }
-    if (GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY') {
-        alert("Please configure your Gemini API Key in script.js");
         return;
     }
 
@@ -289,9 +304,10 @@ async function replaceObject(originalBase64, maskBase64, promptText) {
     };
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`, {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${state.accessToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
