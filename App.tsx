@@ -196,6 +196,23 @@ export default function App() {
     }
   };
 
+  if (!GOOGLE_CLIENT_ID) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-black text-white p-8 text-center">
+        <h1 className="text-3xl font-bold text-red-500 mb-4">Configuration Required</h1>
+        <p className="text-gray-300 mb-4 max-w-md">
+          The Google Client ID is missing. Please add <code>VITE_GOOGLE_CLIENT_ID</code> to your environment variables.
+        </p>
+        <div className="bg-gray-900 p-4 rounded-lg text-left text-sm font-mono text-gray-400">
+          <p>1. Create a Google Cloud Project</p>
+          <p>2. Create an OAuth Client ID</p>
+          <p>3. Add to .env.local:</p>
+          <p className="text-green-400 mt-2">VITE_GOOGLE_CLIENT_ID=your-client-id</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!accessToken) {
     return (
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
