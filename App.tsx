@@ -9,9 +9,11 @@ import { Canvas } from './components/Canvas';
 import { UpdateNotice } from './components/UpdateNotice';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { AdminWidget } from './components/AdminWidget';
+import { Welcome } from './components/Welcome';
 import { OBJECT_PRESETS } from './constants';
 
 export default function App() {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [imageState, setImageState] = useState<ImageState>({
     original: null,
     history: [],
@@ -29,6 +31,8 @@ export default function App() {
     if (sessionStorage.getItem('isAdmin') === 'true') {
       setIsAdmin(true);
     }
+    // Optional: Check if user has visited before to skip welcome? 
+    // For now, show it every time as requested "add a welcome page" implies a landing experience.
   }, []);
 
   const [adjustments, setAdjustments] = useState<AdjustmentSettings>({
@@ -190,6 +194,10 @@ export default function App() {
       document.body.removeChild(link);
     }
   };
+
+  if (showWelcome) {
+    return <Welcome onStart={() => setShowWelcome(false)} />;
+  }
 
   return (
     <div className="relative w-screen h-screen bg-black text-gray-200 font-sans overflow-hidden">
