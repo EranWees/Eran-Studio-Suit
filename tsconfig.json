@@ -25,11 +25,5 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  },
-  "include": [
-    "*.ts",
-    "*.tsx",
-    "components/**/*",
-    "services/**/*"
-  ]
+  }
 }
