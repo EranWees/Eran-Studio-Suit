@@ -1,6 +1,5 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import { EditMode, ImageState, AdjustmentSettings } from './types';
 import { editImage } from './services/geminiService';
 import { AdjustmentsPanel } from './components/AdjustmentsPanel';
@@ -10,13 +9,9 @@ import { Canvas } from './components/Canvas';
 import { UpdateNotice } from './components/UpdateNotice';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { AdminWidget } from './components/AdminWidget';
-import { Login } from './components/Login';
 import { OBJECT_PRESETS } from './constants';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
-
 export default function App() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [imageState, setImageState] = useState<ImageState>({
     original: null,
     history: [],
@@ -154,7 +149,7 @@ export default function App() {
       const prompt = constructPrompt();
       const referenceAsset = (adjustments.backdropStyle === 'object-swap' && adjustments.swapType === 'upload') ? adjustments.swapAsset : null;
 
-      const results = await editImage(currentImage, prompt, referenceAsset, adjustments.variationCount, closestAspectRatio, accessToken);
+      const results = await editImage(currentImage, prompt, referenceAsset, adjustments.variationCount, closestAspectRatio);
 
       if (results.length === 1) {
         addResultToHistory(results[0]);
@@ -196,110 +191,80 @@ export default function App() {
     }
   };
 
-  if (!GOOGLE_CLIENT_ID) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-black text-white p-8 text-center">
-        <h1 className="text-3xl font-bold text-red-500 mb-4">Configuration Required</h1>
-        <p className="text-gray-300 mb-4 max-w-md">
-          The Google Client ID is missing. Please add <code>VITE_GOOGLE_CLIENT_ID</code> to your environment variables.
-        </p>
-        <div className="bg-gray-900 p-4 rounded-lg text-left text-sm font-mono text-gray-400">
-          <p>1. Create a Google Cloud Project</p>
-          <p>2. Create an OAuth Client ID</p>
-          <p>3. Add to .env.local:</p>
-          <p className="text-green-400 mt-2">VITE_GOOGLE_CLIENT_ID=your-client-id</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!accessToken) {
-    return (
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <Login
-          onLoginSuccess={setAccessToken}
-          onLoginFailure={() => setErrorMsg("Login failed. Please try again.")}
-        />
-      </GoogleOAuthProvider>
-    );
-  }
-
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="relative w-screen h-screen bg-black text-gray-200 font-sans overflow-hidden">
+    <div className="relative w-screen h-screen bg-black text-gray-200 font-sans overflow-hidden">
 
-        <UpdateNotice />
-        <FeedbackWidget />
-        {isAdmin && <AdminWidget />}
+      <UpdateNotice />
+      <FeedbackWidget />
+      {isAdmin && <AdminWidget />}
 
-        <div className="absolute inset-0 z-0">
-          <Canvas
-            originalImage={imageState.original}
-            currentImage={currentImage}
-            editMode={editMode}
-            viewMode={viewMode}
-            onUploadTrigger={() => fileInputRef.current?.click()}
-            errorMessage={errorMsg}
-            onClearError={() => setErrorMsg(null)}
-            variationCandidates={variationCandidates}
-            onSelectVariation={handleVariationSelect}
-            onCancelVariation={handleCancelVariation}
-            variationCount={adjustments.variationCount}
-          />
-        </div>
-
-        {hasImage && (
-          <>
-            <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
-              <div className="pointer-events-auto">
-                <Header
-                  hasImage={true}
-                  onUploadClick={() => fileInputRef.current?.click()}
-                  onDownload={handleDownload}
-                  onUndo={handleUndo}
-                  onRedo={handleRedo}
-                  canUndo={canUndo}
-                  canRedo={canRedo}
-                  viewMode={viewMode}
-                  setViewMode={setViewMode}
-                  isOriginal={isOriginal}
-                  stepCount={imageState.currentIndex + 1}
-                  totalSteps={imageState.history.length}
-                  onActivateAdmin={handleActivateAdmin}
-                />
-              </div>
-            </div>
-            <div className="absolute left-4 top-20 bottom-8 z-30 pointer-events-none">
-              <div className="pointer-events-auto h-full">
-                <BackdropsPanel
-                  currentBackdrop={adjustments.backdropStyle}
-                  onSelectBackdrop={(style) => setAdjustments(prev => ({ ...prev, backdropStyle: style }))}
-                  disabled={!currentImage}
-                />
-              </div>
-            </div>
-            <div className="absolute right-4 top-20 bottom-8 z-30 pointer-events-none">
-              <div className="pointer-events-auto h-full">
-                <AdjustmentsPanel
-                  settings={adjustments}
-                  onSettingsChange={setAdjustments}
-                  onProcess={handleProcess}
-                  editMode={editMode}
-                  disabled={!currentImage}
-                />
-              </div>
-            </div>
-          </>
-        )}
-
-        <input
-          type="file"
-          ref={fileInputRef}
-          className="hidden"
-          accept="image/*"
-          onChange={handleFileUpload}
+      <div className="absolute inset-0 z-0">
+        <Canvas
+          originalImage={imageState.original}
+          currentImage={currentImage}
+          editMode={editMode}
+          viewMode={viewMode}
+          onUploadTrigger={() => fileInputRef.current?.click()}
+          errorMessage={errorMsg}
+          onClearError={() => setErrorMsg(null)}
+          variationCandidates={variationCandidates}
+          onSelectVariation={handleVariationSelect}
+          onCancelVariation={handleCancelVariation}
+          variationCount={adjustments.variationCount}
         />
       </div>
-    </GoogleOAuthProvider>
+
+      {hasImage && (
+        <>
+          <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
+            <div className="pointer-events-auto">
+              <Header
+                hasImage={true}
+                onUploadClick={() => fileInputRef.current?.click()}
+                onDownload={handleDownload}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                isOriginal={isOriginal}
+                stepCount={imageState.currentIndex + 1}
+                totalSteps={imageState.history.length}
+                onActivateAdmin={handleActivateAdmin}
+              />
+            </div>
+          </div>
+          <div className="absolute left-4 top-20 bottom-8 z-30 pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <BackdropsPanel
+                currentBackdrop={adjustments.backdropStyle}
+                onSelectBackdrop={(style) => setAdjustments(prev => ({ ...prev, backdropStyle: style }))}
+                disabled={!currentImage}
+              />
+            </div>
+          </div>
+          <div className="absolute right-4 top-20 bottom-8 z-30 pointer-events-none">
+            <div className="pointer-events-auto h-full">
+              <AdjustmentsPanel
+                settings={adjustments}
+                onSettingsChange={setAdjustments}
+                onProcess={handleProcess}
+                editMode={editMode}
+                disabled={!currentImage}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
+        onChange={handleFileUpload}
+      />
+    </div>
   );
 }
