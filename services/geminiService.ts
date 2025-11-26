@@ -10,8 +10,13 @@ const API_KEYS = [
   process.env.API_KEY, // Fallback to original env var if set
 ].filter(Boolean) as string[];
 
+console.log('🔑 API Keys loaded:', API_KEYS.length);
+console.log('🔑 Keys available:', API_KEYS.map((key, i) => `Key ${i + 1}: ${key?.substring(0, 20)}...`));
+
 if (API_KEYS.length === 0) {
-  console.error("No API keys found in environment variables.");
+  console.error("❌ No API keys found in environment variables.");
+} else {
+  console.log(`✅ ${API_KEYS.length} API key(s) ready for rotation`);
 }
 
 // Track current key index for rotation
@@ -130,15 +135,21 @@ export const editImage = async (
 
       } catch (error) {
         lastError = error;
-        console.warn(`API key ${attempt + 1} failed:`, error);
+        console.error(`❌ API key ${attempt + 1} failed:`, error);
+        console.error('Error details:', {
+          message: (error as any)?.message,
+          status: (error as any)?.status,
+          statusText: (error as any)?.statusText,
+        });
 
         // If it's a quota/rate limit error, try the next key
         if (isQuotaError(error)) {
-          console.log(`Quota/rate limit hit, trying next API key...`);
+          console.log(`⚠️ Quota/rate limit hit, trying next API key...`);
           continue;
         }
 
         // For other errors, throw immediately (don't waste other keys)
+        console.error('🛑 Non-quota error detected, stopping rotation');
         throw error;
       }
     }
