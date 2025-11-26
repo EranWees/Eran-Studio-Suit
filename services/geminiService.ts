@@ -1,4 +1,4 @@
-```typescript
+
 import { GoogleGenAI } from "@google/genai";
 
 const API_KEY = process.env.API_KEY;
@@ -17,7 +17,7 @@ const cleanBase64 = (base64: string) => {
 
 const getMimeType = (base64: string) => {
   const match = base64.match(/^data:image\/(png|jpeg|jpg|webp);base64,/);
-  return match ? `image / ${ match[1] } ` : 'image/jpeg';
+  return match ? `image/${match[1]}` : 'image/jpeg';
 };
 
 export const editImage = async (
@@ -28,32 +28,32 @@ export const editImage = async (
   aspectRatio: string = "1:1"
 ): Promise<string[]> => {
   try {
-    const model = 'gemini-2.0-flash'; // Updated to latest model if available, or stick to 1.5-flash
-
+    const model = 'gemini-2.5-flash-image';
+    
     // Build parts array for a single request
     const buildParts = () => {
-      const parts: any[] = [
+        const parts: any[] = [
         {
-          inlineData: {
+            inlineData: {
             mimeType: getMimeType(imageBase64),
             data: cleanBase64(imageBase64),
-          },
+            },
         }
-      ];
+        ];
 
-      // If a reference image (asset) is provided, add it to the request
-      if (referenceImageBase64) {
+        // If a reference image (asset) is provided, add it to the request
+        if (referenceImageBase64) {
         parts.push({
-          inlineData: {
+            inlineData: {
             mimeType: getMimeType(referenceImageBase64),
             data: cleanBase64(referenceImageBase64),
-          },
+            },
         });
-      }
+        }
 
-      // Add prompt
-      parts.push({ text: prompt });
-      return parts;
+        // Add prompt
+        parts.push({ text: prompt });
+        return parts;
     };
 
     // Define the single execution function
@@ -74,7 +74,7 @@ export const editImage = async (
         if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
             for (const part of response.candidates[0].content.parts) {
                 if (part.inlineData && part.inlineData.data) {
-                    return `data: image / png; base64, ${ part.inlineData.data } `;
+                    return `data:image/png;base64,${part.inlineData.data}`;
                 }
             }
         }
