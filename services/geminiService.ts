@@ -19,6 +19,11 @@ if (API_KEYS.length === 0) {
   console.log(`✅ ${API_KEYS.length} API key(s) ready for rotation`);
 }
 
+// TEMPORARY: Test with just the first key
+console.log('⚠️ TESTING MODE: Using only first API key, rotation disabled');
+const SINGLE_KEY = API_KEYS[0];
+console.log('🔑 Using key:', SINGLE_KEY?.substring(0, 25) + '...');
+
 // Track current key index for rotation
 let currentKeyIndex = 0;
 
@@ -63,7 +68,9 @@ export const editImage = async (
   variationCount: number = 1,
   aspectRatio: string = "1:1"
 ): Promise<string[]> => {
-  const model = 'gemini-2.5-flash-image';
+  // Using Gemini 2.0 Flash Experimental with image generation
+  const model = 'gemini-2.0-flash-exp';
+  console.log('🎨 Using model:', model);
 
   // Build parts array for a single request
   const buildParts = () => {
@@ -93,77 +100,48 @@ export const editImage = async (
 
   // Define the single execution function with retry logic
   const generateSingleImage = async (): Promise<string> => {
-    let lastError: any = null;
-    const maxAttempts = API_KEYS.length;
+    // TEMPORARY: Simplified to use just one key
+    const apiKey = SINGLE_KEY;
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const apiKey = getNextApiKey();
+    if (!apiKey) {
+      throw new Error("No API key available");
+    }
 
-      if (!apiKey) {
-        throw new Error("No API keys available");
+    console.log(`🚀 Attempting image generation with first API key only`);
+
+    // Create a new AI instance with the current key
+    const ai = new GoogleGenAI({ apiKey });
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: {
+        parts: buildParts(),
+      },
+      config: {
+        systemInstruction: "You are a professional photo editor. Your task is to modify the input image according to the user's prompt. Return ONLY the modified image. Maintain high quality and realistic lighting.",
+        imageConfig: {
+          aspectRatio: aspectRatio as any
+        }
       }
+    });
 
-      try {
-        console.log(`Attempting with API key ${attempt + 1}/${maxAttempts}`);
+    console.log('📥 API Response received:', {
+      hasCandidates: !!response.candidates,
+      candidatesLength: response.candidates?.length,
+      firstCandidate: response.candidates?.[0] ? 'exists' : 'missing'
+    });
 
-        // Create a new AI instance with the current key
-        const ai = new GoogleGenAI({ apiKey });
-
-        const response = await ai.models.generateContent({
-          model: model,
-          contents: {
-            parts: buildParts(),
-          },
-          config: {
-            systemInstruction: "You are a professional photo editor. Your task is to modify the input image according to the user's prompt. Return ONLY the modified image. Maintain high quality and realistic lighting.",
-            imageConfig: {
-              aspectRatio: aspectRatio as any
-            }
-          }
-        });
-
-        console.log('📥 API Response received:', {
-          hasCandidates: !!response.candidates,
-          candidatesLength: response.candidates?.length,
-          firstCandidate: response.candidates?.[0] ? 'exists' : 'missing'
-        });
-
-        if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
-          for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData && part.inlineData.data) {
-              console.log(`✓ Success with API key ${attempt + 1}`);
-              return `data:image/png;base64,${part.inlineData.data}`;
-            }
-          }
+    if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          console.log(`✓ Success!`);
+          return `data:image/png;base64,${part.inlineData.data}`;
         }
-
-        console.error('⚠️ Response structure unexpected:', JSON.stringify(response, null, 2));
-        throw new Error("No image generated in the response.");
-
-      } catch (error) {
-        lastError = error;
-        console.error(`❌ API key ${attempt + 1} failed:`, error);
-        console.error('Error details:', {
-          message: (error as any)?.message,
-          status: (error as any)?.status,
-          statusText: (error as any)?.statusText,
-        });
-
-        // If it's a quota/rate limit error, try the next key
-        if (isQuotaError(error)) {
-          console.log(`⚠️ Quota/rate limit hit, trying next API key...`);
-          continue;
-        }
-
-        // For other errors, throw immediately (don't waste other keys)
-        console.error('🛑 Non-quota error detected, stopping rotation');
-        throw error;
       }
     }
 
-    // All keys failed
-    console.error("All API keys exhausted");
-    throw lastError || new Error("All API keys failed");
+    console.error('⚠️ Response structure unexpected:', JSON.stringify(response, null, 2));
+    throw new Error("No image generated in the response.");
   };
 
   try {
