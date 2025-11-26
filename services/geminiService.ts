@@ -122,6 +122,12 @@ export const editImage = async (
           }
         });
 
+        console.log('📥 API Response received:', {
+          hasCandidates: !!response.candidates,
+          candidatesLength: response.candidates?.length,
+          firstCandidate: response.candidates?.[0] ? 'exists' : 'missing'
+        });
+
         if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
           for (const part of response.candidates[0].content.parts) {
             if (part.inlineData && part.inlineData.data) {
@@ -131,6 +137,7 @@ export const editImage = async (
           }
         }
 
+        console.error('⚠️ Response structure unexpected:', JSON.stringify(response, null, 2));
         throw new Error("No image generated in the response.");
 
       } catch (error) {
