@@ -1,7 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyBsB3KhtUM2yr7gYpegVdFIZ22UkpSGvrg";
 
 if (!API_KEY) {
   console.error("API_KEY is missing from environment variables.");
